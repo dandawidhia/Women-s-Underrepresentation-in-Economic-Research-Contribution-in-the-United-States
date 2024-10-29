@@ -1,0 +1,424 @@
+---
+title: "FinalAssignment_Report_MCD"
+author: "Christhoper JH/Ari Danda WP/Valentino Marcell"
+date: "2024-06-15"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+# INTRODUCTION
+
+
+## Explaining The Problem
+
+### Women's underrepresentation in economic research contribution is a critical issue in the United States, particularly within the publications of the American Economic Association (AEA) Papers & Proceedings. Despite significant strides toward gender equality in various professional fields, economics remains predominantly male-dominated. This gender disparity in economic research not only undermines the principles of equality but also limits the diversity of perspectives essential for comprehensive economic analysis and policy-making. 
+
+
+## Relevance
+
+### Analyzing women's underrepresentation in economic research is crucial for several reasons. First, it highlights the systemic barriers that women face in academia and research, providing a basis for developing strategies to overcome these obstacles. Second, diverse research teams are known to produce more innovative and comprehensive work, and the inclusion of women can lead to more varied and inclusive economic policies. Third, understanding and addressing gender disparities in academic contributions can inspire other fields to evaluate and improve their gender inclusivity.
+
+
+## Goals and Contribution to SDGs Gender Equality
+
+### The primary objective of this research is to quantify and analyze the extent of women's underrepresentation in economic research contributions, specifically within the AEA Papers & Proceedings. This research directly contributes to the United Nations Sustainable Development Goal (SDG) 5: Achieve gender equality and empower all women and girls. By identifying and addressing the factors leading to women's underrepresentation in economic research, this study supports the broader aim of promoting gender equality in all spheres of life, including academic and professional environments. Enhanced gender equality in economics can lead to more balanced and equitable economic policies, which in turn can contribute to more inclusive and sustainable economic growth.
+
+
+
+**==================================================================================================================**
+
+```{r}
+# Load the necessary libraries for data manipulation, visualization, and interactive visualization
+library(dplyr)
+library(ggplot2)
+library(plotly)
+```
+
+
+# DATA DESCRIPTON
+
+**==================================================================================================================**
+
+```{r}
+# Load the library for reading Excel files and read data from the "DATA" sheet in the "data.xlsx" file
+
+library(readxl)
+df <- read_excel("data.xlsx", sheet = "DATA")
+str(df)
+```
+
+# DATA PRE-PROCCESING
+
+**==================================================================================================================**
+
+```{r}
+# Remove columns that are not needed for the analysis from the dataframe
+df <- df %>% select(-session_no, -paper_no, -session_title, -paper_title, -authors, -name, -num_auth, -JEL, -CSWEP, -prim_institution, -inst_type, -full_institution)
+
+# Display the modified dataframe after dropping columns
+print(df)
+str(df)
+```
+
+```{r}
+# Count and print the number of missing values (NA) in each relevant column
+print(sum(is.na(df$rec)))
+print(sum(is.na(df$year)))
+print(sum(is.na(df$role)))
+print(sum(is.na(df$gender)))
+print(sum(is.na(df$field)))
+```
+
+```{r}
+# Checking number of row which have duplicate data
+jumlah_duplikat <- sum(duplicated(df))
+
+cat("Number of duplicate rows:", jumlah_duplikat, "\n")
+```
+
+
+```{r}
+# Display unique values in the 'gender', 'role', and 'field' columns to understand the variation in the data
+print(unique(df$gender))
+print(unique(df$role))
+print(unique(df$field))
+```
+
+```{r}
+# Filter data to remove rows with invalid 'gender' values (value 3), add 'male' and 'female' columns based on the 'gender' value
+df <- df %>%
+  filter(gender != 3) %>%
+  mutate(
+    male = ifelse(gender == 1, 1, 0),
+    female = ifelse(gender == 2, 1, 0)
+  )
+
+# Remove the 'gender' column as it is no longer needed
+df <- df %>% select(-gender)
+str(df)
+
+```
+
+```{r}
+# Convert numeric values in the 'role' column to more descriptive labels
+df <- df %>%
+  mutate(
+    role = case_when(
+      role == 1 ~ "Paper Author",
+      role == 2 ~ "Discussant",
+      role == 3 ~ "Roundtable Participant",
+      role == 4 ~ "Address",
+      role == 5 ~ "Roundtable Chair",
+      TRUE ~ "unknown"
+    )
+  )
+
+print(df)
+```
+
+```{r}
+# Convert numeric values in the 'field' column to more descriptive labels
+df <- df %>%
+  mutate(
+    field = case_when(
+      field == 1 ~ "Econonomics Profession",
+      field == 2 ~ "Econometrics",
+      field == 3 ~ "Microeconomics",
+      field == 4 ~ "Macroeconomics",
+      field == 5 ~ "International",
+      field == 6 ~ "Public",
+      field == 7 ~ "Labor",
+      field == 8 ~ "Health & Education",
+      field == 9 ~ "Industrial Organization",
+      field == 10 ~ "Environment",
+      field == 11 ~ "Others",
+      TRUE ~ "unknown"
+    )
+  )
+
+print(df)
+```
+
+```{r}
+# Checking Data
+print(colnames(df))
+str(df)
+```
+
+# DATA EXPLORATION
+
+**==================================================================================================================**
+
+## Summarry Statistic
+
+```{r}
+library(psych)
+
+# to find summary staistic on data numerical
+numeric_df <- df %>%
+  select(where(is.numeric))
+describe(numeric_df)
+```
+*Descriptive statistics for numeric variables are useful for understanding the data by providing information on the count, mean, median, minimum, and maximum values. Additionally, they help determine whether the data is symmetric or skewed.*
+
+
+**==================================================================================================================**
+
+## Data Visualization and Initial Insight
+
+```{r}
+# This interactive bar chart shows the percentage of how much males and females contribute to an economic research/journal presented in the AEA annual meeting. Each contributor has each role in the research, this visualization highlights the percentage of males and females in each role.
+
+df_summary <- df %>%
+  group_by(role) %>%
+  summarize(
+    male = sum(male),
+    female = sum(female)
+  ) %>%
+  mutate(total = male + female,
+         male_percentage = scales::percent(male / total, accuracy = 0.1),
+         female_percentage = scales::percent(female / total, accuracy = 0.1))
+
+plot_ly(data = df_summary, type = 'bar') %>%
+  add_trace(x = ~role, y = ~male, name = 'Male',
+            hoverinfo = 'text', text = ~paste("Male: ", male_percentage), showlegend = TRUE) %>%
+  add_trace(x = ~role, y = ~female, name = 'Female',
+            hoverinfo = 'text', text = ~paste("Female: ", female_percentage), showlegend = TRUE) %>%
+  layout(
+    title = "Number of Contributions by Roles and Gender",
+    xaxis = list(title = "Roles"),
+    yaxis = list(title = "Number of Contributions"),
+    barmode = 'group'
+)
+```
+*The chart tells that most female researcher are authors of the paper at 16% which is a low number compared to the males'. It is however better than the other roles as all the other role has <10% and reaching it's lowest at 2.5%. This can also tell that most papers released with a female contributor is mostly authors which means they have to be independent and is less likely to contribute if not as authors*
+
+
+**==================================================================================================================**
+
+```{r}
+# This interactive bar chart shows the percentage of how much males and females contribute to an economic research/journal presented in the AEA annual meeting. Each contributor has each role in the research, this visualization highlights the percentage of males and females in each role.
+
+df_summary <- df %>%
+  group_by(role) %>%
+  summarize(
+    male = sum(male),
+    female = sum(female)
+  ) %>%
+  mutate(total = male + female,
+         male_percentage = scales::percent(male / total, accuracy = 0.1),
+         female_percentage = scales::percent(female / total, accuracy = 0.1))
+
+plot_ly(data = df_summary,
+  marker = list(size = 10)) %>%
+  add_trace(x = ~role, y = ~male, type = 'scatter', mode = 'lines+markers', name = 'Male', hoverinfo = 'text', text =   ~paste("Role : ", role, "<br>",
+         "Male Percentage : ", male_percentage)) %>%
+  add_trace(x = ~role, y = ~female, type = 'scatter', mode = 'lines+markers', name = 'Female', hoverinfo = 'text',      text = ~paste("Role : ", role, "<br>",
+                "Female Percentage : ", female_percentage)) %>%
+  layout(
+    title = "Number and Percentage of Contributions by Role and Gender",
+    xaxis = list(title = "Role"),
+    yaxis = list(title = "Number of Contributions")
+)
+```
+
+*The chart tells that most papers released with a female contributor is mostly authors which means they have to be independent and is less likely to contribute if not as authors. This may conclude that male authors will likely work with other male contributor rather than a female contributor*
+
+
+**==================================================================================================================**
+
+```{r}
+# This interactive bar chart shows the percentage of how much males and females contribute to an economic research/journal presented in the AEA annual meeting. This chart highlights the contribution of males and females in the various field of economics
+
+df_summary <- df %>%
+  group_by(field) %>%
+  summarize(
+    male = sum(male),
+    female = sum(female)
+  ) %>%
+  mutate(total = male + female,
+         male_percentage = scales::percent(male / total, accuracy = 0.1),
+         female_percentage = scales::percent(female / total, accuracy = 0.1))
+
+plot_ly(data = df_summary, type = 'bar') %>%
+  add_trace(x = ~field, y = ~male, name = 'Male',
+            hoverinfo = 'text', text = ~paste("Male: ", male_percentage), showlegend = TRUE) %>%
+  add_trace(x = ~field, y = ~female, name = 'Female',
+            hoverinfo = 'text', text = ~paste("Female: ", female_percentage), showlegend = TRUE) %>%
+  layout(
+    title = "Number of Contributions by Field and Gender",
+    xaxis = list(title = "Field"),
+    yaxis = list(title = "Number of Contributions"),
+    barmode = 'group'
+)
+```
+*From this chart, it is visible that all of the fields in economics are predominantly males. The field which females contribute most in terms of percentage are Labor economics and Health & Education of economics standing at 32%.*
+
+**==================================================================================================================**
+
+```{r}
+# Creating two interactive line charts using Plotly that show the growth of contributions by male and female roles over time
+df_summary_year_malee <- df %>%
+  group_by(year, role) %>%
+  summarize(male = sum(male)) %>%
+  ungroup()
+
+df_summary_year_femalee <- df %>%
+  group_by(year, role) %>%
+  summarize(female = sum(female)) %>%
+  ungroup()
+
+plot_ly(data = df_summary_year_malee, type = 'scatter', mode = 'lines+markers') %>%
+  add_trace(x = ~year, y = ~male, color = ~role, text = ~paste("Role: ", role, "<br>", "Year: ", year, "<br>", "Male: ", male),
+            hoverinfo = 'text') %>%
+  layout(
+    title = "Growth of Male Roles Per Year",
+    xaxis = list(title = "Year"),
+    yaxis = list(title = "Number of Male Contributions")
+  )
+
+plot_ly(data = df_summary_year_femalee, type = 'scatter', mode = 'lines+markers') %>%
+  add_trace(x = ~year, y = ~female, color = ~role, text = ~paste("Role: ", role, "<br>", "Year: ", year, "<br>", "Female: ", female),
+            hoverinfo = 'text') %>%
+  layout(
+    title = "Growth of Female Roles Per Year",
+    xaxis = list(title = "Year"),
+    yaxis = list(title = "Number of Female Contributions")
+  )
+```
+*Consistent with the first visualization results using a bar plot, it is evident that the growth of the "paper author" role tends to increase year by year for both men and women. This clearly makes the "paper author" role the most frequent role to date. Meanwhile, the roles of "Roundtable Chair" and "Participant" has been stopped before 1970. So far, there is no data indicating that these roles have increased. *
+
+**==================================================================================================================**
+
+```{r}
+#Creating an interactive line chart using Plotly that shows the proportion of contributions per year based on role
+
+df_summary_role_year_prop <- df %>%
+  group_by(year, role) %>%
+  summarize(male = sum(male), female = sum(female), .groups = 'drop') %>%
+  mutate(total = male + female) %>%
+  group_by(year) %>%
+  mutate(prop = total / sum(total)) %>%
+  ungroup()
+
+plot_ly(df_summary_role_year_prop, x = ~year, y = ~prop, color = ~role, type = 'scatter', mode = 'lines+markers', fill = 'tozeroy', text = ~paste("Year: ", year, "<br>Role: ", role, "<br>Proportion: ", scales::percent(prop, accuracy = 0.1))) %>%
+  layout(
+    title = "Proportion Contribution per Year by Role",
+    xaxis = list(title = "Year"),
+    yaxis = list(title = "Contribution Proportion", tickformat = "%"),
+    hovermode = "closest"
+  )
+```
+*From the visualization above, we can see that the "Discussant" role had the highest contribution at the beginning of the 20th century. However, over time, the "Paper Author" role has become the most dominant, with contributions exceeding 90% in the last 40 years. Although the "Roundtable Participant" role shows a 0 contribution this year, but in the early 20th century specifically from 1926-1934, the "Roundtable Participant" role had more contributions than the "Paper Author" role. This clearly indicates that the proportion of contributions by each role tended to be fluctuating in the early 20th century and has been dominated by the "Paper Author" role in the last 40 years.*
+
+**==================================================================================================================**
+
+
+```{r}
+# This interactive bar chart shows the percentage of how much males and females contribute to an economic research/journal presented in the AEA annual meeting. This visualizations highlights the amount of male and females in contributing to research/journals disregarding the roles
+
+df_sum <- df %>%
+  group_by(year) %>%
+  summarize(
+    male = sum(male),
+    female = sum(female)
+  )
+plot_ly(data = df_sum, mode = 'markers',
+        marker = list(size = 10)) %>%
+  add_trace(x = ~year, y = ~male, type = 'scatter', mode = 'markers', name = 'Male',
+            hoverinfo = 'text', text = ~paste("Year: ", year, "<br>",
+                                              "Male Contributions: ", male)) %>%
+  add_trace(x = ~year, y = ~female, type = 'scatter', mode = 'markers', name = 'Female',
+            hoverinfo = 'text', text = ~paste("Year: ", year, "<br>",
+                                              "Female Contributions: ", female)) %>%
+  layout(
+    title = "Number of Contributions by Year and Gender",
+    xaxis = list(title = "Year"),
+    yaxis = list(title = "Number of Contributions"),
+    hovermode = 'closest'
+  )
+
+```
+*From the chart it is quite visible that there is a huge gap with it's peak at around the 1950 to 1970. The early years from 1910 to 1940 shows a small gap between males and females, but this is doesn't necessarily mean that there are equal, it may be due to the low amount of economic research papers that are published or presented that year. Although there is an impact in 1920 that changed and leveraged woman's contribution which is the change which allowed woman to vote. This change is visible as before 1920 there are only 4 recorded contributions of female while after 1920, there are 8 contributions within 10 years.*
+**==================================================================================================================**
+
+```{r}
+#Creating two interactive pie chart using plotly that shows the Comparison Gender Contribution on Year 1980 & 2020
+
+# Filter data for the year 2020
+df_2020 <- df %>%
+  filter(year == 2020) %>%
+  summarize(
+    male_total = sum(male),
+    female_total = sum(female)
+  )
+
+# Create dataframe for pie chart
+df_pie_2020 <- data.frame(
+  gender = c("Male", "Female"),
+  total = c(df_2020$male_total, df_2020$female_total)
+)
+
+# Filter data for the year 1980
+df_1980 <- df %>%
+  filter(year == 1980) %>%
+  summarize(
+    male_total = sum(male),
+    female_total = sum(female)
+  )
+
+# Create dataframe for pie chart
+df_pie_1980 <- data.frame(
+  gender = c("Male", "Female"),
+  total = c(df_1980$male_total, df_1980$female_total)
+)
+
+# Create interactive pie chart for the year 2020 with plotly
+plot_ly(df_pie_2020, labels = ~gender, values = ~total, type = 'pie', textinfo = 'label+percent',
+                          insidetextorientation = 'radial') %>%
+  layout(title = "Contribution of Male and Female in 2020")
+
+# Create interactive pie chart for the year 1980 with plotly
+plot_ly(df_pie_1980, labels = ~gender, values = ~total, type = 'pie', textinfo = 'label+percent',
+                          insidetextorientation = 'radial') %>%
+  layout(title = "Contribution of Male and Female in 1980")
+```
+
+**The chart shows that in 1980, females only had a contribution of 9.57%, whereas in 2020, females contributed 36.1%. Although females do not dominate the contributions untill now, there has been a significant increase in female contributions over the past 40 years.**
+
+
+
+## DISCUSsION
+
+**==================================================================================================================**
+
+
+### The analysis of women's underrepresentation in economic research, as evidenced by the contributions to the American Economic Association (AEA) Papers & Proceedings, reveals a persistent gender gap. Despite ongoing efforts to promote gender equality within academia, the data indicates that there is still significant work to be done to achieve equal representation.
+
+### Key Findings
+### Gender Disparity in Contributions: The analysis shows a noticeable underrepresentation of women in authorship and co-authorship roles. This disparity suggests that women are either less likely to submit their research for publication or face greater barriers in the peer-review process.
+
+### Trends Over Time: While there have been some improvements in the representation of women over the years, progress remains slow. The data does not show a consistent upward trend, indicating that current efforts to address gender inequality may not be sufficiently effective.
+
+### Barriers to Entry: Several barriers contribute to the underrepresentation of women in economic research. These include implicit biases in the review process, limited networking opportunities, and a lack of institutional support for female researchers. Additionally, the dual burden of professional and domestic responsibilities disproportionately affects women, limiting their research output and career advancement.
+
+### Impact on Research Quality and Policy: The lack of gender diversity in economic research leads to a narrower range of perspectives and ideas, potentially hindering the development of comprehensive and inclusive economic policies. Diverse research teams are known to produce more innovative and robust findings, highlighting the importance of gender balance.
+
+
+
+## CONCLUSION
+
+**==================================================================================================================**
+
+
+### The findings from this analysis underscore the need for continued and enhanced efforts to promote gender equality in economic research. Achieving gender parity in contributions to the AEA Papers & Proceedings is not just a matter of fairness; it is essential for the advancement of the field of economics and the development of well-rounded economic policies.
+
+### Recommendations
+### Institutional Policies: Academic institutions and professional associations should implement policies that actively promote gender equality. This includes mentorship programs, gender-balanced conference panels, and transparent criteria for publication and promotion.
+
+### Bias Training: Training programs to mitigate implicit biases in the review and publication processes can help create a more level playing field for female researchers.
+
+### Support Networks: Establishing strong support networks for female economists, including mentorship and sponsorship programs, can provide the necessary guidance and opportunities for career advancement.
+
+### Work-Life Balance: Policies that support a better work-life balance, such as flexible working hours and parental leave, can help mitigate the dual burden that many female researchers face.
